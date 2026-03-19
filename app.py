@@ -26,6 +26,55 @@ button[kind="headerNoPadding"]            {display:none!important}
 section[data-testid="stSidebar"] > div:first-child > div > button {display:none!important}
 .st-emotion-cache-h4xjwg                  {display:none!important}
 .st-emotion-cache-1l269bu                 {display:none!important}
+
+/* ── TOP NAVBAR ── */
+.top-navbar {
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+.nav-back {
+    width: 34px; height: 34px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px;
+    border: 1px solid #e2e8f0;
+    flex-shrink: 0;
+}
+.nav-back:hover { background: #e2e8f0; }
+.nav-breadcrumb {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: #94a3b8;
+}
+.nav-breadcrumb .crumb-home { color: #94a3b8; cursor: pointer; }
+.nav-breadcrumb .crumb-home:hover { color: #3b82f6; }
+.nav-breadcrumb .crumb-sep { color: #cbd5e1; }
+.nav-breadcrumb .crumb-current { color: #1e293b; font-weight: 700; }
+.nav-pills {
+    margin-left: auto;
+    display: flex; gap: 6px; flex-wrap: wrap;
+}
+.nav-pill {
+    padding: 5px 12px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    border: 1.5px solid #e2e8f0; background: white; color: #64748b;
+    transition: all 0.15s;
+}
+.nav-pill:hover   { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+.nav-pill.active  { background: #1e3a5f; color: white; border-color: #1e3a5f; }
+.nav-user {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg,#3b82f6,#8b5cf6);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 11px; flex-shrink: 0;
+}
 section[data-testid="stSidebar"]{background-color:#1e3a5f!important;min-width:220px!important;max-width:220px!important}
 section[data-testid="stSidebar"] p,section[data-testid="stSidebar"] span,
 section[data-testid="stSidebar"] div,section[data-testid="stSidebar"] label{color:rgba(255,255,255,0.75)!important}
@@ -47,8 +96,96 @@ section[data-testid="stSidebar"] .stButton button:hover{background:rgba(255,255,
 # ── SESSION STATE ──────────────────────────────────────────────────────────────
 for k,v in {"page":"Dashboard","logged_in":False,"username":"","email":"",
              "users":{},"history":[],
+             "page_history":["Dashboard"],
              "stats":{"total":0,"real":0,"fake":0,"suspicious":0}}.items():
     if k not in st.session_state: st.session_state[k]=v
+
+def go_to(page):
+    """Navigate to a page and track history for back button."""
+    if st.session_state.page != page:
+        st.session_state.page_history.append(page)
+    st.session_state.page = page
+    st.rerun()
+
+def go_back():
+    """Go to previous page."""
+    hist = st.session_state.page_history
+    if len(hist) > 1:
+        hist.pop()  # remove current
+        st.session_state.page = hist[-1]
+    else:
+        st.session_state.page = "Dashboard"
+        st.session_state.page_history = ["Dashboard"]
+    st.rerun()
+
+# ── TOP NAVBAR ─────────────────────────────────────────────────────────────────
+def show_navbar():
+    """Renders top navigation bar with back button, breadcrumb, nav pills, user avatar."""
+    page     = st.session_state.page
+    username = st.session_state.username
+    initials = "".join(w[0] for w in username.split()).upper()[:2]
+    can_back = len(st.session_state.page_history) > 1
+
+    NAV_PAGES = ["Dashboard","Job Analyzer","URL Checker","Job Portals","History","Settings"]
+    NAV_ICONS = {"Dashboard":"🏠","Job Analyzer":"🔍","URL Checker":"🔗",
+                 "Job Portals":"🌐","History":"🕐","Settings":"⚙️"}
+
+    # Build navbar using columns
+    cols = st.columns([0.04, 0.25, 0.55, 0.08, 0.08])
+
+    # Back button
+    with cols[0]:
+        if can_back:
+            if st.button("←", help="Go back", key="nav_back_btn",
+                         use_container_width=True):
+                go_back()
+
+    # Breadcrumb
+    with cols[1]:
+        st.markdown(
+            f'<div style="display:flex;align-items:center;gap:6px;padding-top:6px">'
+            f'<span style="color:#94a3b8;font-size:12px">🛡️ Home</span>'
+            f'<span style="color:#cbd5e1;font-size:12px">›</span>'
+            f'<span style="color:#1e293b;font-weight:700;font-size:13px">{page}</span>'
+            f'</div>',
+            unsafe_allow_html=True)
+
+    # Nav pills (main pages only, hide on mobile via smaller cols)
+    with cols[2]:
+        pill_cols = st.columns(len(NAV_PAGES))
+        for i, pg in enumerate(NAV_PAGES):
+            with pill_cols[i]:
+                is_active = page == pg
+                btn_style = ("primary" if is_active else "secondary")
+                if st.button(f"{NAV_ICONS[pg]} {pg.split()[0]}",
+                             key=f"topnav_{pg}",
+                             type=btn_style,
+                             use_container_width=True):
+                    go_to(pg)
+
+    # User avatar + name
+    with cols[3]:
+        st.markdown(
+            f'<div style="display:flex;align-items:center;gap:7px;padding-top:4px">'
+            f'<div style="width:32px;height:32px;border-radius:50%;'
+            f'background:linear-gradient(135deg,#3b82f6,#8b5cf6);'
+            f'display:flex;align-items:center;justify-content:center;'
+            f'color:white;font-weight:700;font-size:11px">{initials}</div>'
+            f'<span style="font-size:12px;font-weight:600;color:#1e293b;'
+            f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+            f'{username}</span></div>',
+            unsafe_allow_html=True)
+
+    # Sign out
+    with cols[4]:
+        if st.button("🚪 Out", key="topnav_signout", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.page = "Dashboard"
+            st.session_state.page_history = ["Dashboard"]
+            st.rerun()
+
+    st.markdown("<hr style='margin:0 0 16px 0;border:none;border-top:1px solid #e2e8f0'>",
+                unsafe_allow_html=True)
 
 # ── GROQ CLIENT ───────────────────────────────────────────────────────────────
 def get_groq():
@@ -254,14 +391,14 @@ def sidebar():
         for icon,label in [("🏠","Dashboard"),("🔍","Job Analyzer"),
                            ("🔗","URL Checker"),("🌐","Job Portals")]:
             if st.button(f"{icon}  {label}",key=f"nav_{label}",use_container_width=True):
-                st.session_state.page=label; st.rerun()
+                go_to(label)
         st.markdown(
             '<div style="font-size:9px;font-weight:700;color:rgba(255,255,255,0.35);'
             'letter-spacing:1.5px;text-transform:uppercase;margin:14px 0 8px;padding-left:4px">'
             'ACCOUNT</div>',unsafe_allow_html=True)
         for icon,label in [("🕐","History"),("⚙️","Settings")]:
             if st.button(f"{icon}  {label}",key=f"nav_{label}",use_container_width=True):
-                st.session_state.page=label; st.rerun()
+                go_to(label)
         st.markdown("---")
         total=st.session_state.stats["total"]
         st.markdown(
@@ -281,7 +418,9 @@ def sidebar():
             f'color:#4ade80">● DB · {total} scans</div></div>',
             unsafe_allow_html=True)
         if st.button("🚪  Sign Out",key="btn_logout",use_container_width=True):
-            st.session_state.update(logged_in=False,page="Dashboard"); st.rerun()
+            st.session_state.update(logged_in=False,page="Dashboard")
+            st.session_state.page_history=["Dashboard"]
+            st.rerun()
 
 # ── DASHBOARD ──────────────────────────────────────────────────────────────────
 def page_dashboard():
@@ -316,13 +455,13 @@ def page_dashboard():
     c1,c2,c3=st.columns(3)
     with c1:
         if st.button("🔍 Analyze a Job",use_container_width=True):
-            st.session_state.page="Job Analyzer"; st.rerun()
+            go_to("Job Analyzer")
     with c2:
         if st.button("🔗 Check a URL",use_container_width=True):
-            st.session_state.page="URL Checker"; st.rerun()
+            go_to("URL Checker")
     with c3:
         if st.button("🌐 Job Portals",use_container_width=True):
-            st.session_state.page="Job Portals"; st.rerun()
+            go_to("Job Portals")
 
 # ── JOB ANALYZER ───────────────────────────────────────────────────────────────
 def page_analyzer():
@@ -626,7 +765,7 @@ def page_history():
     if not hist:
         st.info("📋 No history yet.")
         if st.button("📝 Start Analyzing",type="primary"):
-            st.session_state.page="Job Analyzer"; st.rerun()
+            go_to("Job Analyzer")
         return
     st.dataframe(pd.DataFrame(hist),use_container_width=True,hide_index=True)
     if st.button("🔄 Clear History",type="secondary"):
@@ -680,11 +819,14 @@ def page_settings():
 
 # ── ROUTER ─────────────────────────────────────────────────────────────────────
 def main():
-    if not st.session_state.logged_in: page_login(); return
+    if not st.session_state.logged_in:
+        page_login()
+        return
     sidebar()
+    show_navbar()
     {"Dashboard":page_dashboard,"Job Analyzer":page_analyzer,
      "URL Checker":page_url,"Job Portals":page_portals,
      "History":page_history,"Settings":page_settings
-    }.get(st.session_state.page,page_dashboard)()
+    }.get(st.session_state.page, page_dashboard)()
 
 if __name__=="__main__": main()
