@@ -18,6 +18,14 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 html,body,[class*="css"]{font-family:'Plus Jakarta Sans',sans-serif!important}
 #MainMenu,footer,header{visibility:hidden}
+
+/* ── Hide ALL sidebar toggle/collapse buttons permanently ── */
+[data-testid="collapsedControl"]          {display:none!important}
+[data-testid="stSidebarCollapseButton"]   {display:none!important}
+button[kind="headerNoPadding"]            {display:none!important}
+section[data-testid="stSidebar"] > div:first-child > div > button {display:none!important}
+.st-emotion-cache-h4xjwg                  {display:none!important}
+.st-emotion-cache-1l269bu                 {display:none!important}
 section[data-testid="stSidebar"]{background-color:#1e3a5f!important;min-width:220px!important;max-width:220px!important}
 section[data-testid="stSidebar"] p,section[data-testid="stSidebar"] span,
 section[data-testid="stSidebar"] div,section[data-testid="stSidebar"] label{color:rgba(255,255,255,0.75)!important}
