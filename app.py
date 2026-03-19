@@ -3,7 +3,7 @@ Job Fraud Detector — Streamlit App
 Built by Nvvsatish | Powered by Google Gemini AI (FREE) + ML
 """
 import streamlit as st
-import google.generativeai as genai
+from google import genai as genai_client
 import base64, json, re, os, random
 from datetime import datetime
 from PIL import Image
@@ -47,29 +47,43 @@ def ask_gemini(prompt, images=None):
     if not key:
         st.error("🔑 **GEMINI_API_KEY not found.**\n\nStreamlit Cloud → App **(⋮)** → Settings → Secrets → add:\n```\nGEMINI_API_KEY = \"AIzaSy...\"\n```\n\nGet FREE key at **aistudio.google.com**")
         st.stop()
-    genai.configure(api_key=key)
-    # Try models in order until one works
+
+    # Use new google-genai SDK (not deprecated google-generativeai)
+    client = genai_client.Client(api_key=key)
+
+    # Current working model names (2025)
     models_to_try = [
-        "gemini-1.5-flash-latest",
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
         "gemini-1.5-flash",
-        "gemini-1.5-pro-latest",
         "gemini-1.5-pro",
-        "gemini-pro",
+        "gemini-2.5-flash",
     ]
+
+    # Build content parts
+    parts = []
+    if images:
+        for img in images:
+            import io as _io
+            buf = _io.BytesIO()
+            img.save(buf, format="JPEG")
+            from google.genai import types as genai_types
+            parts.append(genai_types.Part.from_bytes(
+                data=buf.getvalue(), mime_type="image/jpeg"
+            ))
+    parts.append(prompt)
+
     last_error = None
     for model_name in models_to_try:
         try:
-            model = genai.GenerativeModel(model_name)
-            parts = (images + [prompt]) if images else [prompt]
-            resp = model.generate_content(parts)
+            resp = client.models.generate_content(model=model_name, contents=parts)
             return resp.text.strip()
         except Exception as e:
             last_error = e
-            # If it's a 404, try next model
-            if "404" in str(e) or "not found" in str(e).lower():
+            if any(x in str(e).lower() for x in ["404","not found","not supported","deprecated"]):
                 continue
-            # Any other error — raise immediately
             raise e
+
     raise Exception(f"All Gemini models failed. Last error: {last_error}")
 
 # ── ML ─────────────────────────────────────────────────────────────────────────
@@ -439,6 +453,15 @@ def page_settings():
         else:
             st.error("❌ No GEMINI_API_KEY found")
             st.code('GEMINI_API_KEY = "AIzaSy..."',language="toml")
+
+        if key and st.button("🔍 List Available Models", use_container_width=True):
+            try:
+                client = genai_client.Client(api_key=key)
+                models = [m.name for m in client.models.list()]
+                st.success("✅ Available models:")
+                for m in models[:10]: st.code(m)
+            except Exception as e:
+                st.error(f"Error: {e}")
 
 # ── MAIN ───────────────────────────────────────────────────────────────────────
 def main():
