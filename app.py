@@ -38,7 +38,8 @@ for k,v in {"page":"Dashboard","logged_in":False,"username":"","email":"",
     if k not in st.session_state: st.session_state[k]=v
 
 # ── GEMINI ─────────────────────────────────────────────────────────────────────
-def get_model():
+
+def ask_gemini(prompt, images=None):
     key=""
     try: key=st.secrets["GEMINI_API_KEY"]
     except: key=os.environ.get("GEMINI_API_KEY","")
@@ -47,12 +48,29 @@ def get_model():
         st.error("🔑 **GEMINI_API_KEY not found.**\n\nStreamlit Cloud → App **(⋮)** → Settings → Secrets → add:\n```\nGEMINI_API_KEY = \"AIzaSy...\"\n```\n\nGet FREE key at **aistudio.google.com**")
         st.stop()
     genai.configure(api_key=key)
-    return genai.GenerativeModel("gemini-1.5-flash")
-
-def ask_gemini(prompt, images=None):
-    model=get_model()
-    parts=(images+[prompt]) if images else [prompt]
-    return model.generate_content(parts).text.strip()
+    # Try models in order until one works
+    models_to_try = [
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro-latest",
+        "gemini-1.5-pro",
+        "gemini-pro",
+    ]
+    last_error = None
+    for model_name in models_to_try:
+        try:
+            model = genai.GenerativeModel(model_name)
+            parts = (images + [prompt]) if images else [prompt]
+            resp = model.generate_content(parts)
+            return resp.text.strip()
+        except Exception as e:
+            last_error = e
+            # If it's a 404, try next model
+            if "404" in str(e) or "not found" in str(e).lower():
+                continue
+            # Any other error — raise immediately
+            raise e
+    raise Exception(f"All Gemini models failed. Last error: {last_error}")
 
 # ── ML ─────────────────────────────────────────────────────────────────────────
 RKW=["work from home","earn money fast","no experience needed","guaranteed income","unlimited earning",
